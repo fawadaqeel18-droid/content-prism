@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Content Prism</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: radial-gradient(ellipse at 50% -10%, #1E2148 0%, #14162B 55%, #0D0E1F 100%);
+    color: #EDEBFA;
+    min-height: 100vh;
+  }
+  .display-font { font-family: 'Fraunces', serif; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 56px 20px 80px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px;
+    letter-spacing: 0.12em; text-transform: uppercase; color: #9B97C9; margin-bottom: 18px;
+  }
+  h1 { font-size: clamp(32px, 6vw, 52px); font-weight: 600; line-height: 1.08; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: #A78BFA; }
+  .sub { color: #9B97C9; font-size: 16px; margin-top: 16px; max-width: 480px; margin-inline: auto; }
+  .hero { text-align: center; margin-bottom: 48px; }
+  .panel { background: #1A1C3A; border: 1px solid #2E2F5C; border-radius: 16px; padding: 20px; margin-bottom: 28px; }
+  textarea {
+    width: 100%; background: transparent; border: none; outline: none; resize: none;
+    color: #EDEBFA; font-size: 18px; font-family: inherit;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px;
+    font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid #33345E;
+    background: transparent; color: #9B97C9; transition: all 0.15s ease;
+  }
+  .chip.active { color: #0D0E1F; }
+  .gen-btn {
+    margin-top: 16px; width: 100%; padding: 13px; border-radius: 10px; border: none;
+    font-size: 15px; font-weight: 600; cursor: pointer; color: #0D0E1F;
+    background: linear-gradient(90deg, #A78BFA, #FF6B6B);
+  }
+  .gen-btn:disabled { background: #2E2F5C; color: #6B6B96; cursor: not-allowed; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .card { background: #1A1C3A; border-radius: 14px; padding: 18px; border: 1px solid; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 13px; font-weight: 600; }
+  .copy-btn { background: none; border: none; color: #9B97C9; cursor: pointer; font-size: 12px; }
+  .card p { font-size: 14px; line-height: 1.6; color: #D9D7EE; white-space: pre-wrap; margin: 0; }
+  .error { color: #FF6B6B; text-align: center; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">✨ One idea, four formats</div>
+    <h1 class="display-font">Feed it a topic.<br><span>Watch it split into content.</span></h1>
+    <p class="sub">Type what you want to write about. Pick your formats. Get every draft at once.</p>
+  </div>
+
+  <div class="panel">
+    <textarea id="topic" rows="2" placeholder="e.g. Why octopuses have three hearts"></textarea>
+    <div class="chips" id="chips"></div>
+    <button class="gen-btn" id="genBtn">Generate</button>
+  </div>
+
+  <div id="errorBox"></div>
+  <div class="grid" id="results"></div>
+</div>
+
+<script>
+const FORMATS = [
+  { id: "essay", label: "Essay", hue: "#A78BFA" },
+  { id: "script", label: "Video Script", hue: "#FF6B6B" },
+  { id: "caption", label: "Social Caption", hue: "#FFB84D" },
+  { id: "email", label: "Email", hue: "#4ECDC4" },
+];
+
+let selected = new Set(["essay", "script"]);
+
+const chipsEl = document.getElementById("chips");
+const topicEl = document.getElementById("topic");
+const genBtn = document.getElementById("genBtn");
+const resultsEl = document.getElementById("results");
+const errorBox = document.getElementById("errorBox");
+
+function renderChips() {
+  chipsEl.innerHTML = "";
+  FORMATS.forEach(f => {
+    const active = selected.has(f.id);
+    const el = document.createElement("button");
+    el.className = "chip" + (active ? " active" : "");
+    el.textContent = f.label;
+    el.style.borderColor = active ? f.hue : "#33345E";
+    el.style.background = active ? f.hue : "transparent";
+    el.style.color = active ? "#0D0E1F" : "#9B97C9";
+    el.onclick = () => {
+      if (selected.has(f.id)) selected.delete(f.id); else selected.add(f.id);
+      renderChips();
+    };
+    chipsEl.appendChild(el);
+  });
+}
+renderChips();
+
+async function generate() {
+  const topic = topicEl.value.trim();
+  if (!topic || selected.size === 0) return;
+
+  genBtn.disabled = true;
+  genBtn.textContent = "Splitting the beam…";
+  errorBox.innerHTML = "";
+  resultsEl.innerHTML = "";
+
+  const picks = FORMATS.filter(f => selected.has(f.id));
+
+  for (const f of picks) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.borderColor = f.hue + "44";
+    card.style.borderTop = "3px solid " + f.hue;
+    card.innerHTML = `
+      <div class="card-head" style="color:${f.hue}">
+        <span>${f.label}</span>
+        <button class="copy-btn">Copy</button>
+      </div>
+      <p>Generating…</p>
+    `;
+    resultsEl.appendChild(card);
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, format: f.id }),
+      });
+      const data = await res.json();
+      const text = data.error ? "⚠️ " + data.error : data.text;
+      card.querySelector("p").textContent = text;
+      card.querySelector(".copy-btn").onclick = () => {
+        navigator.clipboard.writeText(text);
+        card.querySelector(".copy-btn").textContent = "Copied";
+        setTimeout(() => (card.querySelector(".copy-btn").textContent = "Copy"), 1500);
+      };
+    } catch (err) {
+      card.querySelector("p").textContent = "⚠️ Network error: " + err.message;
+    }
+    // small gap to stay under free-tier rate limits
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  genBtn.disabled = false;
+  genBtn.textContent = "Generate";
+}
+
+genBtn.onclick = generate;
+</script>
+</body>
+</html>
